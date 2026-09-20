@@ -1,0 +1,7 @@
+server:
+  port: 8090
+
+services:
+  auth-url: http://localhost:8081
+  product-url: http://localhost:8082
+  order-url: http://localhost:8083
