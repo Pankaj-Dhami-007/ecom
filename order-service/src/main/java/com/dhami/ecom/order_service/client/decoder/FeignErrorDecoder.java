@@ -1,7 +1,7 @@
 package com.dhami.ecom.order_service.client.decoder;
 
-import com.dhami.ecom.order_service.exception.OrderServiceException;
-import com.dhami.ecom.order_service.exception.ResourceNotFoundException;
+import com.dhami.ecom.order_service.order.OrderServiceException;
+import com.dhami.ecom.order_service.common.exception.ResourceNotFoundException;
 import feign.Response;
 import feign.Util;
 import feign.codec.ErrorDecoder;
