@@ -1,0 +1,31 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: order-service
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/ecom_order_db
+    username: root
+    password: Dhami@123
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+    show-sql: true
+
+product-service:
+  url: http://localhost:8082
+
+notification-service:
+  url: http://localhost:8084
+
+logging:
+  level:
+    feign: DEBUG
+    org.springframework.cloud.openfeign: DEBUG

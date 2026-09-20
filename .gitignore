@@ -1,0 +1,13 @@
+# Root IDE files
+.idea/
+
+# Logs
+*.log
+
+# Environment / secrets
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,32 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: notification-service
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:pankajdhami811@gmail.com}
+    password: rsmadbeitmnqrvcw
+
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        debug: true
+
+logging:
+  level:
+    com.dhami.ecom.notification_service: DEBUG
+    org.springframework.mail: DEBUG
+    jakarta.mail: DEBUG
+    com.sun.mail: DEBUG
+    org.springframework.web: INFO
+
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
