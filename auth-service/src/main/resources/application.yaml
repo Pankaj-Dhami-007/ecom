@@ -10,7 +10,9 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      # Tables are owned by schema.sql, applied by hand. Matches product-service,
+      # order-service and cart-service.
+      ddl-auto: none
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect

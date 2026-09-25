@@ -12,6 +12,7 @@ public final class ApiPaths {
     public static final String PRODUCTS_PATTERN = "/api/v1/products/**";
     public static final String CATEGORIES_PATTERN = "/api/v1/categories/**";
     public static final String ORDERS_PATTERN = "/api/v1/orders/**";
+    public static final String CARTS_PATTERN = "/api/v1/carts/**";
 
     public static final String ACTUATOR_HEALTH = "/actuator/health";
 }

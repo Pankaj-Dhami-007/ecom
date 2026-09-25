@@ -27,6 +27,7 @@ public class SecurityConfig {
                         .pathMatchers(ApiPaths.PRODUCTS_PATTERN).authenticated()
                         .pathMatchers(ApiPaths.CATEGORIES_PATTERN).authenticated()
                         .pathMatchers(ApiPaths.ORDERS_PATTERN).authenticated()
+                        .pathMatchers(ApiPaths.CARTS_PATTERN).authenticated()
 
                         .pathMatchers(ApiPaths.ACTUATOR_HEALTH).permitAll()
 

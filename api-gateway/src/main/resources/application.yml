@@ -1,5 +1,5 @@
 server:
-  port: 8085
+  port: 8090
 
 spring:
   application:
@@ -30,6 +30,11 @@ spring:
               uri: ${ORDER_SERVICE_URL:http://localhost:8083}
               predicates:
                 - Path=/api/v1/orders/**
+
+            - id: cart-service
+              uri: ${CART_SERVICE_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/v1/carts/**
 
 logging:
   level:

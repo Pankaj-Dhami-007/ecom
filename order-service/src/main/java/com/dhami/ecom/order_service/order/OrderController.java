@@ -1,6 +1,7 @@
 package com.dhami.ecom.order_service.order;
 
 import com.dhami.ecom.order_service.constants.Routes;
+import com.dhami.ecom.order_service.common.context.RequestUserContext;
 import com.dhami.ecom.order_service.order.dto.CreateOrderRequest;
 import com.dhami.ecom.order_service.order.dto.UpdateOrderRequest;
 import com.dhami.ecom.order_service.order.dto.UpdateOrderStatusRequest;
@@ -36,7 +37,7 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<OrderResponse>> createOrder(@Valid @RequestBody CreateOrderRequest request) {
-        log.info("Create order request received for customer id: {}", request.getCustomerId());
+        log.info("Create order request received with {} item(s)", request.getItems().size());
         OrderResponse response = orderService.createOrder(request);
         log.info("Order created successfully with id: {} and number: {}", response.getId(), response.getOrderNumber());
         return new ResponseEntity<>(
@@ -55,18 +56,8 @@ public class OrderController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getAllOrders(
-            @RequestParam(required = false) Long customerId,
             @RequestParam(required = false) OrderStatus status,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        if (customerId != null) {
-            log.info("Fetching orders for customer id: {} - page: {}, size: {}", customerId, pageable.getPageNumber(), pageable.getPageSize());
-            return ResponseEntity.ok(
-                    ApiResponse.success(
-                            orderService.getOrdersByCustomerId(customerId, pageable),
-                            "Orders retrieved successfully"
-                    )
-            );
-        }
         if (status != null) {
             log.info("Fetching orders by status: {} - page: {}, size: {}", status, pageable.getPageNumber(), pageable.getPageSize());
             return ResponseEntity.ok(
@@ -76,9 +67,13 @@ public class OrderController {
                     )
             );
         }
-        log.info("Fetching all orders - page: {}, size: {}", pageable.getPageNumber(), pageable.getPageSize());
+        Long userId = RequestUserContext.requireUserId();
+        log.info("Fetching orders for customer id: {} - page: {}, size: {}", userId, pageable.getPageNumber(), pageable.getPageSize());
         return ResponseEntity.ok(
-                ApiResponse.success(orderService.getAllOrders(pageable), "Orders retrieved successfully")
+                ApiResponse.success(
+                        orderService.getOrdersByCustomerId(userId, pageable),
+                        "Orders retrieved successfully"
+                )
         );
     }
 

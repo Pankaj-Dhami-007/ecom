@@ -1,6 +1,7 @@
 package com.dhami.ecom.order_service.order.service;
 
 import com.dhami.ecom.order_service.client.product.ProductClient;
+import com.dhami.ecom.order_service.common.context.RequestUserContext;
 import com.dhami.ecom.order_service.order.dto.CreateOrderRequest;
 import com.dhami.ecom.order_service.order.dto.OrderItemRequest;
 import com.dhami.ecom.order_service.client.product.dto.StockUpdateRequest;
@@ -54,7 +55,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
-        log.info("Creating order for customer id: {} with {} item(s)", request.getCustomerId(), request.getItems().size());
+        Long userId = RequestUserContext.requireUserId();
+        log.info("Creating order for customer id: {} with {} item(s)", userId, request.getItems().size());
 
         List<OrderItemEntity> items = buildOrderItems(request.getItems());
 
@@ -64,7 +66,7 @@ public class OrderServiceImpl implements OrderService {
 
         OrderEntity order = OrderEntity.builder()
                 .orderNumber(generateOrderNumber())
-                .customerId(request.getCustomerId())
+                .customerId(userId)
                 .totalAmount(total)
                 .status(OrderStatus.PENDING)
                 .build();

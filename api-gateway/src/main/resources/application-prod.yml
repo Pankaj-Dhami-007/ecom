@@ -1,7 +1,12 @@
 server:
   port: 8090
 
-services:
-  auth-url: http://localhost:8081
-  product-url: http://localhost:8082
-  order-url: http://localhost:8083
+# Containerised deployment: services resolve by container name on the shared
+# docker network (see `--network game-network` in Jenkinsfile.dev).
+# These values feed the ${SERVICE_URL:...} placeholders used by the routes in
+# application.yml, so routing only has to be declared in one place.
+# A real environment variable (e.g. set in Docker) still wins over these.
+AUTH_SERVICE_URL: http://auth-service:8081
+PRODUCT_SERVICE_URL: http://product-service:8082
+ORDER_SERVICE_URL: http://order-service:8083
+CART_SERVICE_URL: http://cart-service:8086
