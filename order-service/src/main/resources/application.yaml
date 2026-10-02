@@ -19,11 +19,14 @@ spring:
         format_sql: false
     show-sql: true
 
-product-service:
+catalog-service:
   url: http://localhost:8082
 
 notification-service:
   url: http://localhost:8084
+
+payment-service:
+  url: http://localhost:8085
 
 logging:
   level:

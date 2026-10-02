@@ -1,0 +1,7 @@
+package com.dhami.authservice.dto;
+
+import jakarta.validation.constraints.NotBlank;
+
+public record RefreshRequest(
+        @NotBlank String refreshToken
+) {}

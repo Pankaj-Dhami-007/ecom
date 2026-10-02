@@ -21,8 +21,8 @@ spring:
               predicates:
                 - Path=/auth/api/v1/**
 
-            - id: product-service
-              uri: ${PRODUCT_SERVICE_URL:http://localhost:8082}
+            - id: catalog-service
+              uri: ${CATALOG_SERVICE_URL:http://localhost:8082}
               predicates:
                 - Path=/api/v1/products/**,/api/v1/categories/**
 
@@ -38,7 +38,7 @@ spring:
 
 logging:
   level:
-    com.codemonks.api_gateway: DEBUG
+    com.dhami.gatewayservice: DEBUG
     org.springframework.cloud.gateway: INFO
     org.springframework.security: INFO
 

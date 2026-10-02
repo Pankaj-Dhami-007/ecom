@@ -1,0 +1,32 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: payment-service
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/ecom_payment_db
+    username: root
+    password: 123456
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+    show-sql: true
+
+order-service:
+  url: http://localhost:8083
+
+payment:
+  gateway:
+    # dummy | razorpay | stripe ... switching this is the only change a real
+    # gateway needs in configuration
+    type: dummy
+    dummy:
+      # SUCCESS | FAILURE | TIMEOUT
+      default-outcome: SUCCESS

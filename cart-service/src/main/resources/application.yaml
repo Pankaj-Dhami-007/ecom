@@ -27,11 +27,14 @@ spring:
             connectTimeout: 5000
             readTimeout: 5000
 
-product-service:
+catalog-service:
   url: http://localhost:8082
+
+order-service:
+  url: http://localhost:8083
 
 logging:
   level:
     feign: DEBUG
     org.springframework.cloud.openfeign: DEBUG
-    com.dhami.cart_service: DEBUG
+    com.dhami.cartservice: DEBUG

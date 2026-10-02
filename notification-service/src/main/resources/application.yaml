@@ -22,7 +22,7 @@ spring:
 
 logging:
   level:
-    com.dhami.ecom.notification_service: DEBUG
+    com.dhami.notificationservice: DEBUG
     org.springframework.mail: DEBUG
     jakarta.mail: DEBUG
     com.sun.mail: DEBUG

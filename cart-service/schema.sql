@@ -6,16 +6,20 @@ USE ecom_cart_db;
 
 CREATE TABLE IF NOT EXISTS cart
 (
-    id         BIGINT        NOT NULL AUTO_INCREMENT,
-    user_id    BIGINT        NOT NULL,
-    status     VARCHAR(20)   NOT NULL DEFAULT 'ACTIVE',
-    currency   VARCHAR(3)    NOT NULL,
-    version    BIGINT        NOT NULL DEFAULT 0,
-    created_at DATETIME(6)   NOT NULL,
-    updated_at DATETIME(6)   NOT NULL,
+    id            BIGINT      NOT NULL AUTO_INCREMENT,
+    user_id       BIGINT      NOT NULL,
+    status        VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    currency      VARCHAR(3)  NOT NULL,
+    active_marker TINYINT     NULL,
+    order_id      BIGINT      NULL,
+    version       BIGINT      NOT NULL DEFAULT 0,
+    created_at    DATETIME(6) NOT NULL,
+    updated_at    DATETIME(6) NOT NULL,
 
     PRIMARY KEY (id),
-    KEY idx_cart_user_id_status (user_id, status)
+    UNIQUE KEY uk_cart_user_active (user_id, active_marker),
+    KEY idx_cart_user_id_status (user_id, status),
+    KEY idx_cart_order_id (order_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS cart_item
