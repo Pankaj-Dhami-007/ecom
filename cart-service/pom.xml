@@ -51,6 +51,48 @@
 			<artifactId>spring-cloud-starter-openfeign</artifactId>
 		</dependency>
 
+		<!--
+			The starter, not the bare spring-kafka artifact. Spring Boot 4 moved every
+			technology's auto-configuration into its own module, so spring-kafka on its own
+			ships the KafkaTemplate class with nothing that registers it as a bean: the project
+			compiles cleanly, then startup fails with "required a bean of type KafkaTemplate".
+			This starter pulls in spring-kafka and spring-boot-kafka together.
+
+			No <version> on purpose: the Spring Boot parent already manages it, and letting it
+			pick the version keeps this service on a Kafka client that matches the rest of the
+			Boot release. Adding a version here would silently opt out of that.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-kafka</artifactId>
+		</dependency>
+
+		<!--
+			Jackson 2 alongside Boot's Jackson 3. Boot 4 ships tools.jackson (Jackson 3) and
+			spring-boot-starter-jackson already puts that on the classpath, but kafka-clients
+			4.2.1 still loads com.fasterxml.jackson.databind while building its consumer. Any
+			service with a @KafkaListener therefore dies at startup with
+			"NoClassDefFoundError: com/fasterxml/jackson/databind/JavaType". Boot keeps managing
+			the Jackson 2 line through jackson-2-bom, so this is left unversioned on purpose.
+		-->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
+
+		<!--
+			Teaches the same Jackson 2 mapper how to read and write java.time values. The
+			event consumed here carries an Instant as occurredAt, and Jackson 2 refuses those
+			by default with "Java 8 date/time type java.time.Instant not supported". Spring
+			Kafka's JsonDeserializer builds its own ObjectMapper rather than borrowing the
+			context's Jackson 3 one, so it needs this module on the classpath to pick it up.
+			Adding the dependency is enough: JacksonUtils registers it automatically.
+		-->
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jsr310</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>

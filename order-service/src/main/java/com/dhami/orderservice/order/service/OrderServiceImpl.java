@@ -2,6 +2,7 @@ package com.dhami.orderservice.order.service;
 
 import com.dhami.orderservice.client.catalog.ProductClient;
 import com.dhami.orderservice.common.context.RequestUserContext;
+import com.dhami.orderservice.kafka.OrderEventPublisher;
 import com.dhami.orderservice.order.dto.CreateOrderRequest;
 import com.dhami.orderservice.order.dto.OrderItemRequest;
 import com.dhami.orderservice.order.dto.ShippingAddressRequest;
@@ -44,7 +45,12 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
     private final ProductClient productClient;
-    private final OrderNotificationService orderNotificationService;
+
+    // OLD: sent notifications over HTTP through Feign, inside the order transaction.
+    // private final OrderNotificationService orderNotificationService;
+
+    private final OrderEventPublisher orderEventPublisher;
+
     private final ApplicationEventPublisher publisher;
 
     private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = new EnumMap<>(OrderStatus.class);
@@ -83,25 +89,17 @@ public class OrderServiceImpl implements OrderService {
 
         OrderEntity saved = orderRepository.save(order);
         reserveStockForItems(saved.getOrderItems());
-        orderNotificationService.onOrderCreated(saved);
+
+        // OLD: blocked this transaction on an SMTP round trip to notification-service.
+        // orderNotificationService.onOrderCreated(saved);
+
+        orderEventPublisher.publishCreated(saved);
+
         requestPayment(saved);
         log.info("Order created successfully with id: {} and number: {}", saved.getId(), saved.getOrderNumber());
         return orderMapper.toResponse(saved);
     }
 
-    /**
-     * Retries the payment for an order that has not been settled yet.
-     *
-     * Two different starting states need different handling, because only one of them
-     * has given the stock back:
-     *
-     *   PAYMENT_FAILED     the reservation was already released, so it has to be taken
-     *                      again before the retry, otherwise the order would be paid for
-     *                      with nothing held on the product.
-     *   PENDING_PAYMENT    the payment never reached a conclusion (the gateway did not
-     *                      answer), so the reservation is still held. Re-reserving here
-     *                      would take the same stock twice and could oversell.
-     */
     @Override
     @Transactional
     public OrderResponse retryPayment(Long id) {
@@ -129,21 +127,10 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.toResponse(saved);
     }
 
-    /**
-     * Queues the payment for after this transaction commits.
-     *
-     * Never call OrderPaymentService.initiatePayment(..) from inside a transactional
-     * method: payment-service calls back into this service to confirm the order, and an
-     * uncommitted order row is invisible to that callback. See OrderPaymentEventListener.
-     */
     private void requestPayment(OrderEntity order) {
         publisher.publishEvent(new OrderPaymentRequestedEvent(order.getId(), order.getOrderNumber()));
     }
 
-    /**
-     * Called by payment-service once the payment succeeds.
-     * Turns the held reservation into a sale and confirms the order.
-     */
     @Override
     @Transactional
     public OrderResponse confirmOrder(Long id) {
@@ -169,10 +156,6 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.toResponse(saved);
     }
 
-    /**
-     * Called by payment-service when the payment fails.
-     * Gives the held reservation back to available stock.
-     */
     @Override
     @Transactional
     public OrderResponse markPaymentFailed(Long id) {
@@ -286,7 +269,12 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setStatus(OrderStatus.CANCELLED);
         OrderEntity saved = orderRepository.save(order);
-        orderNotificationService.onOrderCancelled(saved);
+
+        // OLD: blocked this transaction on an SMTP round trip to notification-service.
+        // orderNotificationService.onOrderCancelled(saved);
+
+        orderEventPublisher.publishCancelled(saved);
+
         log.info("Order cancelled successfully with id: {}", id);
         return orderMapper.toResponse(saved);
     }
@@ -324,7 +312,11 @@ public class OrderServiceImpl implements OrderService {
         OrderEntity saved = orderRepository.save(order);
 
         if (target == OrderStatus.DELIVERED) {
-            orderNotificationService.onOrderDelivered(saved);
+
+            // OLD: blocked this transaction on an SMTP round trip to notification-service.
+            // orderNotificationService.onOrderDelivered(saved);
+
+            orderEventPublisher.publishDelivered(saved);
         }
 
         log.info("Order status updated successfully for id: {} from {} to {}", id, current, target);

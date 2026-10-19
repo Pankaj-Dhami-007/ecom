@@ -16,4 +16,5 @@ public interface CartEntityRepository extends JpaRepository<CartEntity, Long> {
     );
 
     Page<CartEntity> findByUserIdAndStatus(Long userId, CartStatusEnum status, Pageable pageable);
+    Optional<CartEntity> findByOrderId(Long orderId);
 }

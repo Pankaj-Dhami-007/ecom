@@ -8,6 +8,25 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+/**
+ * Delivers order notifications to notification-service over HTTP.
+ *
+ * ------------------------------------------------------------------------------------------
+ * DEAD CODE as of the Kafka change. OrderServiceImpl no longer injects this adapter; it
+ * publishes on Kafka through
+ * {@link com.dhami.orderservice.kafka.OrderEventPublisher} and notification-service consumes
+ * the events in its own listeners.
+ *
+ * Why that matters: this path ran inside the order transaction, so every order operation
+ * waited on an SMTP round trip, and a mail outage could fail an order that was perfectly
+ * valid. Note also the hardcoded recipient below, which exists only because order-service
+ * never had the customer's email. On the Kafka path the event carries the customer id and
+ * notification-service resolves the recipient on its own side.
+ *
+ * Kept as dead code on purpose, so the old approach stays readable and reversible.
+ * ------------------------------------------------------------------------------------------
+ */
+@Deprecated(since = "1.0.0", forRemoval = true)
 @Service
 @RequiredArgsConstructor
 @Slf4j

@@ -8,9 +8,14 @@ import java.util.List;
 
 public interface PaymentService {
 
-    PaymentResponse createPayment(CreatePaymentRequest request);
-
+    CreatePaymentResult createPayment(CreatePaymentRequest request);
     PaymentResponse getPaymentByOrderId(Long orderId);
-
     List<PaymentResponse> getPaymentsByCustomerId(Long customerId);
+
+    record CreatePaymentResult(
+            boolean charged,
+            PaymentStatus status,
+            String message
+    ) {
+    }
 }

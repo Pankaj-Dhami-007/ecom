@@ -16,14 +16,6 @@ public class OrderPaymentService {
 
     private final PaymentClient paymentClient;
 
-    /**
-     * Triggers the payment for an order and nothing else.
-     *
-     * The payment result is deliberately not handled here. Payment-service owns the
-     * payment state and calls back into order-service (confirmOrder / markPaymentFailed).
-     * Keeping this call one-directional means an event bus can later replace those HTTP
-     * callbacks with PAYMENT_SUCCESS / PAYMENT_FAILED events without touching this method.
-     */
     public void initiatePayment(OrderEntity order) {
         log.info("Initiating payment for order id: {} with amount: {}", order.getId(), order.getTotalAmount());
 

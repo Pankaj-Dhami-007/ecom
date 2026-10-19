@@ -1,0 +1,69 @@
+# Local Kafka for development.
+#
+# Only Kafka lives here. The databases and the Spring services are still run directly from
+# the IDE, as they were before this file existed, so nothing else about the local setup has
+# to change.
+#
+# Kafka 4.x has no ZooKeeper mode at all, so there is no ZooKeeper container below. A single
+# node runs the broker and the controller in the same process, which is why every replication
+# factor is 1.
+#
+# The tag is pinned to 4.2.1 because that is the Kafka client version Spring Boot 4.1.1 puts
+# on the classpath. Letting the image drift to "latest" risks a broker that is newer than
+# the client talking to it, which fails in confusing ways.
+#
+# Start with:  docker compose up -d
+# Watch a topic with:
+#   docker exec -it ecom-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+#     --bootstrap-server localhost:9092 --topic payment.succeeded --from-beginning
+services:
+  kafka:
+    image: apache/kafka:4.2.1
+    container_name: ecom-kafka
+    ports:
+      # host port -> container port. The services run on the host, so they reach the broker
+      # through localhost.
+      - "9092:9092"
+    environment:
+      # Fixed so the broker's metadata is stable across restarts. With the volume mounted
+      # below this is what stops every restart looking like a brand new cluster and losing
+      # the topic history.
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+      # KRaft, not ZooKeeper: one node plays both roles.
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      # Two listeners: one for clients, one internal to the controller.
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      # Advertised address is what clients actually connect to after bootstrap. It must be
+      # reachable from the client, which is why it is localhost and not the container name.
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # Single node, so internal topics cannot be replicated. These three would otherwise
+      # keep retrying and leave the broker stuck in a failing state.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # A new consumer group does not have to wait before it can start assigning partitions.
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+      # Topics are declared in code by each owning service through its NewTopic beans, not
+      # created implicitly on first use. Implicit creation would pick a partition count by
+      # default, which is rarely what a consumer group wants.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      # The mount path must match the broker's actual log.dirs. The apache/kafka image
+      # defaults to /tmp/kafka-logs on 4.x (it used to be /tmp/kraft-combined-logs on
+      # older releases), and nothing in this file overrides log.dirs. Mounting anywhere
+      # else gives a volume that stays empty while the broker writes to the container
+      # filesystem, so every `down` + `up` silently loses every topic and message.
+      - kafka-data:/tmp/kafka-logs
+
+volumes:
+  kafka-data:

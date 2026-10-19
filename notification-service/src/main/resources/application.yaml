@@ -20,6 +20,21 @@ spring:
             required: true
         debug: true
 
+  kafka:
+    bootstrap-servers: ${KAFKA_URL:localhost:9092}
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        # Spring Boot 4 no longer has spring.json.* properties of its own, so this raw
+        # Spring Kafka property has to be set on the consumer factory directly.
+        spring.json.use.type.headers: false
+      group-id: notification-service
+
+notifications:
+  recipient:
+    email: ${NOTIFICATION_RECIPIENT_EMAIL:pankajdhami357@gmail.com}
+
 logging:
   level:
     com.dhami.notificationservice: DEBUG

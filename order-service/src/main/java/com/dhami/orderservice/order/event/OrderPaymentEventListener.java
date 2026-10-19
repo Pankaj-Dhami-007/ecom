@@ -32,7 +32,7 @@ public class OrderPaymentEventListener {
     private final OrderRepository orderRepository;
     private final OrderPaymentService orderPaymentService;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    // @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onPaymentRequested(OrderPaymentRequestedEvent event) {
         log.info("Order {} (id: {}) committed - starting payment",
                 event.orderNumber(), event.orderId());
@@ -44,3 +44,18 @@ public class OrderPaymentEventListener {
         );
     }
 }
+
+/*
+
+Order create
+    ↓
+Order DB mein save
+    ↓
+Transaction COMMIT
+    ↓
+Spring automatically listener ko call karta hai
+    ↓
+onPaymentRequested(...)
+    ↓
+Payment Service ko call
+ */

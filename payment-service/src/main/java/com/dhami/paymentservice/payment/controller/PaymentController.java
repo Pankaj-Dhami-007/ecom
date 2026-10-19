@@ -28,10 +28,18 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<PaymentResponse>> createPayment(
             @Valid @RequestBody CreatePaymentRequest request) {
         log.info("Create payment request received for order id: {}", request.orderId());
-        PaymentResponse payment = paymentService.createPayment(request);
-        log.info("Payment {} finished with status {}", payment.paymentId(), payment.status());
+
+        PaymentService.CreatePaymentResult result = paymentService.createPayment(request);
+        log.info("Payment attempt for order id: {} finished with status {} (charged: {})",
+                request.orderId(), result.status(), result.charged());
+
+        // The stored payment is returned rather than the result record, because this endpoint
+        // is still reachable directly for testing and for a future caller that is not the
+        // order flow. The row is the truth about the attempt; an unanswered gateway leaves it
+        // PENDING, which the caller can see here and act on.
         return ResponseEntity.ok(
-                ApiResponse.success(payment, "Payment processed")
+                ApiResponse.success(paymentService.getPaymentByOrderId(request.orderId()),
+                        result.message())
         );
     }
 

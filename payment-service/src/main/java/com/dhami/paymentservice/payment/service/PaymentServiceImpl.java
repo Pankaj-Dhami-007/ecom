@@ -1,6 +1,7 @@
 package com.dhami.paymentservice.payment.service;
 
 import com.dhami.paymentservice.common.exception.PaymentNotFoundException;
+import com.dhami.paymentservice.kafka.PaymentEventPublisher;
 import com.dhami.paymentservice.payment.PaymentEntity;
 import com.dhami.paymentservice.payment.PaymentStatus;
 import com.dhami.paymentservice.payment.dto.CreatePaymentRequest;
@@ -26,18 +27,13 @@ public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentGateway paymentGateway;
-    private final PaymentCallbackService paymentCallbackService;
 
-    /**
-     * Charges the order and pushes the result back to order-service and cart-service.
-     *
-     * Deliberately not @Transactional: the gateway call is a slow external call that must
-     * not sit inside a database transaction holding a lock on the payment row. The PENDING
-     * row is committed first, so a crash mid-charge leaves an honest "we do not know yet"
-     * record rather than a lost payment.
-     */
+    // private final PaymentCallbackService paymentCallbackService;
+
+    private final PaymentEventPublisher paymentEventPublisher;
+
     @Override
-    public PaymentResponse createPayment(CreatePaymentRequest request) {
+    public CreatePaymentResult createPayment(CreatePaymentRequest request) {
         log.info("Creating payment for order id: {} amount: {} {}",
                 request.orderId(), request.amount(), currencyOrDefault(request.currency()));
 
@@ -48,17 +44,10 @@ public class PaymentServiceImpl implements PaymentService {
             // the one hard guard: money definitely moved, so never charge this order again
             log.warn("Order id: {} is already paid - returning the successful payment without charging again",
                     request.orderId());
-            return toResponse(latest, "Order is already paid, no new charge attempted");
+            return new CreatePaymentResult(true, PaymentStatus.SUCCESS,
+                    "Order is already paid, no new charge attempted");
         }
 
-        // FAILED and PENDING both start a fresh attempt, which becomes a new row so the
-        // earlier attempt stays in the history.
-        //
-        // WARNING for a real gateway: re-attempting a PENDING charge is only safe because
-        // the dummy never actually moved money when it reported a timeout. Against a live
-        // provider the outcome of a timed-out attempt is unknown, so this branch must
-        // first ask the provider (getPaymentByOrderId) and only re-charge when the
-        // provider confirms nothing was captured. See the unused getPaymentByOrderId below.
         if (latest != null) {
             log.info("Previous attempt for order id: {} was {} - starting a new attempt",
                     request.orderId(), latest.getStatus());
@@ -89,23 +78,33 @@ public class PaymentServiceImpl implements PaymentService {
             // leave the payment PENDING: the order keeps its reservation and the user can retry
             log.error("Gateway {} did not answer for payment {} - payment stays PENDING, reservation held",
                     paymentGateway.name(), saved.getPaymentReference(), e);
-            return toResponse(saved, "Payment gateway did not respond, payment is still pending");
+            // charged=false is what tells the caller this is unknown rather than declined.
+            return new CreatePaymentResult(false, PaymentStatus.PENDING,
+                    "Payment gateway did not respond, payment is still pending");
         }
 
         if (result.approved()) {
             saved.markSuccess(result.gatewayReference());
             paymentRepository.save(saved);
             log.info("Payment {} approved by gateway {}", saved.getPaymentReference(), paymentGateway.name());
-            paymentCallbackService.onPaymentSuccess(saved);
-            return toResponse(saved, "Payment completed successfully");
+
+            // OLD: synchronous callback into order-service.
+            // paymentCallbackService.onPaymentSuccess(saved);
+
+            paymentEventPublisher.publishSucceeded(saved);
+            return new CreatePaymentResult(true, PaymentStatus.SUCCESS, "Payment completed successfully");
         }
 
         saved.markFailed(result.failureReason());
         paymentRepository.save(saved);
         log.info("Payment {} declined by gateway {}: {}",
                 saved.getPaymentReference(), paymentGateway.name(), result.failureReason());
-        paymentCallbackService.onPaymentFailed(saved);
-        return toResponse(saved, "Payment failed");
+
+        // OLD: synchronous callback into order-service.
+        // paymentCallbackService.onPaymentFailed(saved);
+
+        paymentEventPublisher.publishFailed(saved);
+        return new CreatePaymentResult(true, PaymentStatus.FAILED, "Payment failed");
     }
 
     @Override

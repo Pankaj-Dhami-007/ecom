@@ -19,13 +19,53 @@ spring:
         format_sql: false
     show-sql: true
 
+  kafka:
+    # Specifies the Kafka bootstrap server address used by the client
+    # to establish its initial connection to the Kafka cluster.
+    # KAFKA_URL can override the default localhost:9092 value.
+    bootstrap-servers: ${KAFKA_URL:localhost:9092}
+    producer:
+      # Serializes Kafka record keys from String values into bytes before sending.
+      # StringSerializer Apache Kafka client library
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+      # Serializes event objects into JSON bytes before publishing them to Kafka.
+      # Supports serializing different event classes using their runtime types.
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        # Requires the Kafka leader to receive acknowledgement from all
+        # current in-sync replicas before considering the record successfully sent.
+        # options -> 0, 1, all
+        acks: all
+        # Enables producer idempotence to prevent duplicate records caused by
+        # supported producer retries within the same producer session.
+        enable.idempotence: true
+    # Defines configuration properties for the Kafka consumer,
+    # which reads and deserializes records from Kafka topics.
+    consumer:
+      # Deserializes Kafka record keys from bytes into String values.
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      # Defines the Kafka consumer group ID used to coordinate consumption
+      # and track offsets for this consumer group.
+      group-id: payment-service
+      properties:
+        # Configures the JSON deserializer to ignore Java type information
+        # from Kafka record headers when determining the target value type.
+        spring.json.use.type.headers: false
+        # Specifies the default Java class used to deserialize Kafka record
+        # values when type information from record headers is not used.
+        spring.json.value.default.type: com.dhami.paymentservice.kafka.dto.OrderCreatedEvent
+        # Specifies the package whose classes are trusted for JSON deserialization
+        # by Spring Kafka's JsonDeserializer.
+        spring.json.trusted.packages: com.dhami.paymentservice.kafka.dto
+
 order-service:
   url: http://localhost:8083
 
 payment:
   gateway:
-    # dummy | razorpay | stripe ... switching this is the only change a real
-    # gateway needs in configuration
+    # dummy | razorpay | stripe ...
     type: dummy
     dummy:
       # SUCCESS | FAILURE | TIMEOUT

@@ -61,6 +61,40 @@
 			<artifactId>spring-cloud-starter-openfeign</artifactId>
 		</dependency>
 
+		<!--
+			The starter, not the bare spring-kafka artifact. Spring Boot 4 moved every
+			technology's auto-configuration into its own module, so spring-kafka on its own
+			ships the KafkaTemplate class with nothing that registers it as a bean: the project
+			compiles cleanly, then startup fails with "required a bean of type KafkaTemplate".
+			This starter pulls in spring-kafka and spring-boot-kafka together.
+
+			No <version> on purpose: the Spring Boot parent already manages it, and letting it
+			pick the version keeps this service on a Kafka client that matches the rest of the
+			Boot release. Adding a version here would silently opt out of that.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-kafka</artifactId>
+		</dependency>
+
+		<!--
+			Jackson 2, and its java.time module. Boot 4 ships Jackson 3 (tools.jackson) for
+			the web layer, but Spring Kafka's JsonSerializer builds its own Jackson 2 mapper
+			instead of borrowing the context's, and it needs Jackson 2 present to do that at
+			all. The jsr310 module is what lets that mapper handle the Instant on every event
+			published here; without it publishing fails with "Java 8 date/time type
+			java.time.Instant not supported". Both versions stay managed by Boot, so neither
+			dependency carries a version.
+		-->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jsr310</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>com.mysql</groupId>
 			<artifactId>mysql-connector-j</artifactId>

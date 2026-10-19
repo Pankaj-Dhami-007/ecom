@@ -212,28 +212,47 @@ public class CartServiceImpl implements CartService {
 
         OrderResponse order = placeOrder(cart, request);
 
-        // The order is already settled by now: order-service reserved the stock, called
-        // payment-service, and payment-service called back to confirm or fail the order.
-        // Re-reading it is what tells the cart whether it may become CONVERTED.
-        OrderResponse settled = fetchSettledOrder(order.getId());
+        // OLD: this only worked because the whole chain was synchronous. payment-service
+        //      called order-service back before createOrder returned, so re-reading the
+        //      order here normally already showed CONFIRMED, which is what let the cart
+        //      go straight to CONVERTED in the same request.
+        //
+        //      OrderResponse settled = fetchSettledOrder(order.getId());
+        //      if (settled != null && ORDER_STATUS_CONFIRMED.equals(settled.getStatus())) {
+        //          cart.changeStatus(CartStatusEnum.CONVERTED);
+        //          log.info("Payment confirmed - cart {} is now CONVERTED against order {}", cartId, order.getId());
+        //      } else {
+        //          cart.changeStatus(CartStatusEnum.CHECKOUT);
+        //          log.info("Payment not confirmed - cart {} stays CHECKOUT against order {}", cartId, order.getId());
+        //      }
+
+        // NEW: the payment result now arrives asynchronously on Kafka, so at this point the
+        //      order is still PENDING_PAYMENT no matter what. The cart is left in CHECKOUT
+        //      and PaymentEventListener moves it to CONVERTED when payment.succeeded arrives.
+        //
+        //      CHECKOUT is exactly the state the old code already used for an unsettled
+        //      payment, so the retry path works unchanged: the user comes back to the same
+        //      cart and the same order instead of losing it.
 
         cart.setOrderId(order.getId());
-        if (settled != null && ORDER_STATUS_CONFIRMED.equals(settled.getStatus())) {
-            cart.changeStatus(CartStatusEnum.CONVERTED);
-            log.info("Payment confirmed - cart {} is now CONVERTED against order {}", cartId, order.getId());
-        } else {
-            // payment did not succeed: stay CHECKOUT so the user can retry this same
-            // order instead of losing the cart
-            cart.changeStatus(CartStatusEnum.CHECKOUT);
-            log.info("Payment not confirmed - cart {} stays CHECKOUT against order {}", cartId, order.getId());
-        }
+        cart.changeStatus(CartStatusEnum.CHECKOUT);
         cartRepository.save(cart);
 
-        log.info("Checkout placed - cart {} resolved against order {} for user id: {}",
+        log.info("Checkout placed - cart {} is in CHECKOUT against order {} for user id: {}. "
+                        + "It becomes CONVERTED once payment.succeeded is consumed.",
                 cartId, order.getId(), userId);
-        return settled != null ? settled : order;
+
+        return order;
     }
 
+    /**
+     * Reads the order back to find out whether its payment settled.
+     *
+     * <p>No longer called, and kept as dead code on purpose. It is still accurate about what
+     * it did and why it worked, and the same read-back idea becomes relevant again if a
+     * synchronous settle check is ever wanted as a fallback.
+     */
+    @Deprecated(since = "1.0.0", forRemoval = true)
     private OrderResponse fetchSettledOrder(Long orderId) {
         try {
             ApiResponse<OrderResponse> response = orderClient.getOrderById(orderId);
@@ -280,9 +299,13 @@ public class CartServiceImpl implements CartService {
     }
 
     /**
-     * Marks a CHECKOUT cart as CONVERTED on demand. Checkout normally settles the cart
-     * itself by reading the order status, so this exists as the idempotent repair hook for
-     * the case where the order was confirmed but the cart update did not stick.
+     * Marks a CHECKOUT cart as CONVERTED on demand.
+     *
+     * <p>This used to be the only way a cart reached CONVERTED, because checkout could not
+     * do it itself. Checkout now leaves the cart in CHECKOUT and the Kafka listener flips it
+     * once the payment succeeds, so this endpoint is the manual repair hook: it is still the
+     * right tool when an order is confirmed but the cart update did not stick, for example
+     * because the listener was down when the event arrived.
      */
     @Override
     @Transactional
@@ -309,6 +332,47 @@ public class CartServiceImpl implements CartService {
         CartEntity saved = cartRepository.save(cart);
         log.info("Cart {} marked CONVERTED against order {}", cartId, cart.getOrderId());
         return cartMapper.toResponse(saved);
+    }
+
+    /**
+     * Moves the cart behind a paid order to CONVERTED.
+     *
+     * <p>Driven by the payment.succeeded event. This is what checkout can no longer do for
+     * itself: the payment result now arrives asynchronously, so at the end of checkout the
+     * order is still PENDING_PAYMENT and only this can complete the cart.
+     *
+     * <p><b>Nothing here throws for a business state.</b> A cart that is missing, already
+     * converted, or in any other state is logged and accepted. Kafka retries anything thrown
+     * from a listener, and this event can be delivered more than once, so an exception on a
+     * normal outcome would turn into a repeat attempt at something already decided. An order
+     * created without a cart also lands here, and that is expected rather than a fault.
+     */
+    @Override
+    @Transactional
+    public void markCartConvertedForOrder(Long orderId) {
+        log.info("Converting the cart behind order id: {} after its payment succeeded", orderId);
+
+        CartEntity cart = cartRepository.findByOrderId(orderId).orElse(null);
+
+        if (cart == null) {
+            log.info("No cart is linked to order id: {} - nothing to convert", orderId);
+            return;
+        }
+
+        if (cart.getStatus() == CartStatusEnum.CONVERTED) {
+            log.info("Cart {} is already CONVERTED against order id: {}", cart.getId(), orderId);
+            return;
+        }
+
+        if (cart.getStatus() != CartStatusEnum.CHECKOUT) {
+            log.warn("Cart {} is {} and cannot be converted against order id: {} - leaving it unchanged",
+                    cart.getId(), cart.getStatus(), orderId);
+            return;
+        }
+
+        cart.changeStatus(CartStatusEnum.CONVERTED);
+        cartRepository.save(cart);
+        log.info("Cart {} is now CONVERTED against order id: {}", cart.getId(), orderId);
     }
 
     private OrderResponse placeOrder(CartEntity cart, CheckoutRequest request) {

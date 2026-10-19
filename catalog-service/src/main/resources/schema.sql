@@ -1,6 +1,6 @@
 CREATE DATABASE IF NOT EXISTS ecom_product_db;
 
-USE ecom_product_db;
+USE ecom_catalog_db;
 
 CREATE TABLE IF NOT EXISTS categories (
     id          BIGINT       NOT NULL AUTO_INCREMENT,
